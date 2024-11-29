@@ -1,0 +1,796 @@
+	Code for a library system which includes a GUI
+	
+	//LibrarySystemGUI class
+package lms;
+
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.Vector;
+
+public class LibrarySystemGUI extends JFrame {
+
+    private JTable booksTable;
+    private DefaultTableModel tableModel;
+    private JTextField titleField, authorField, yearField, quantityField, searchField;
+    private JButton addBookButton, deleteBookButton, searchButton, clearSearchButton, popularBooksButton, overdueBooksButton;
+
+    // Member Registration Fields
+    private JTextField firstNameField, lastNameField, emailField, phoneField, addressField;
+    private JButton registerMemberButton;
+
+    // Borrow/Return Fields
+    private JButton borrowBookButton, returnBookButton;
+    private JComboBox<String> memberComboBox; // Dropdown to select member for borrowing/returning books
+
+    public LibrarySystemGUI() {
+        setTitle("Library Management System");
+        setSize(1000, 700);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
+
+        // Initialize components
+        initializeComponents();
+
+        // Load books data into the table
+        loadBooksData();
+    }
+
+    private void initializeComponents() {
+        // Panel for Book Input Form
+        JPanel formPanel = new JPanel(new GridLayout(5, 2, 10, 10));
+        formPanel.setBorder(BorderFactory.createTitledBorder("Add New Book"));
+
+        formPanel.add(new JLabel("Title:"));
+        titleField = new JTextField();
+        formPanel.add(titleField);
+
+        formPanel.add(new JLabel("Author:"));
+        authorField = new JTextField();
+        formPanel.add(authorField);
+
+        formPanel.add(new JLabel("Year Published:"));
+        yearField = new JTextField();
+        formPanel.add(yearField);
+
+        formPanel.add(new JLabel("Quantity:"));
+        quantityField = new JTextField();
+        formPanel.add(quantityField);
+
+        addBookButton = new JButton("Add Book");
+        formPanel.add(addBookButton);
+
+        // Panel for Search functionality
+        JPanel searchPanel = new JPanel(new FlowLayout());
+        searchPanel.setBorder(BorderFactory.createTitledBorder("Search Books"));
+
+        searchPanel.add(new JLabel("Search by Title/Author:"));
+        searchField = new JTextField(20);
+        searchPanel.add(searchField);
+
+        searchButton = new JButton("Search");
+        searchPanel.add(searchButton);
+
+        clearSearchButton = new JButton("Clear Search");
+        searchPanel.add(clearSearchButton);
+
+        // Panel for Buttons
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        deleteBookButton = new JButton("Delete Selected Book");
+        buttonPanel.add(deleteBookButton);
+
+        // Add form, search panel, and button panels to the left panel
+        JPanel leftPanel = new JPanel(new BorderLayout());
+        leftPanel.add(formPanel, BorderLayout.NORTH);
+        leftPanel.add(searchPanel, BorderLayout.CENTER);  // Position the search panel above delete button
+        leftPanel.add(buttonPanel, BorderLayout.SOUTH);
+        add(leftPanel, BorderLayout.WEST);
+
+        // Table for displaying books
+        String[] columnNames = {"ID", "Title", "Author", "Year", "Quantity"};
+        tableModel = new DefaultTableModel(columnNames, 0);
+        booksTable = new JTable(tableModel);
+
+        JScrollPane scrollPane = new JScrollPane(booksTable);
+        scrollPane.setBorder(BorderFactory.createTitledBorder("Books List"));
+        add(scrollPane, BorderLayout.CENTER);
+
+        // Add Button Action Listeners
+        addBookButton.addActionListener(e -> addBook());
+        deleteBookButton.addActionListener(e -> deleteSelectedBook());
+        searchButton.addActionListener(e -> searchBooks());
+        clearSearchButton.addActionListener(e -> clearSearch());
+
+        // New Buttons for Report Generation
+        popularBooksButton = new JButton("Popular Books Report");
+        overdueBooksButton = new JButton("Overdue Books Report");
+
+        // Add Action Listeners for Report Buttons
+        popularBooksButton.addActionListener(e -> generatePopularBooksReport());
+        overdueBooksButton.addActionListener(e -> generateOverdueBooksReport());
+
+        // Add the report buttons to a panel and place it on the frame
+        JPanel reportPanel = new JPanel(new FlowLayout());
+        reportPanel.add(popularBooksButton);
+        reportPanel.add(overdueBooksButton);
+        add(reportPanel, BorderLayout.SOUTH);
+
+        // Member Registration Form
+        JPanel memberFormPanel = new JPanel(new GridLayout(6, 2, 10, 10));
+        memberFormPanel.setBorder(BorderFactory.createTitledBorder("Register New Member"));
+
+        memberFormPanel.add(new JLabel("First Name:"));
+        firstNameField = new JTextField();
+        memberFormPanel.add(firstNameField);
+
+        memberFormPanel.add(new JLabel("Last Name:"));
+        lastNameField = new JTextField();
+        memberFormPanel.add(lastNameField);
+
+        memberFormPanel.add(new JLabel("Email:"));
+        emailField = new JTextField();
+        memberFormPanel.add(emailField);
+
+        memberFormPanel.add(new JLabel("Phone:"));
+        phoneField = new JTextField();
+        memberFormPanel.add(phoneField);
+
+        memberFormPanel.add(new JLabel("Address:"));
+        addressField = new JTextField();
+        memberFormPanel.add(addressField);
+
+        registerMemberButton = new JButton("Register Member");
+        memberFormPanel.add(registerMemberButton);
+
+        add(memberFormPanel, BorderLayout.EAST);
+
+        // Register Member Button Action Listener
+        registerMemberButton.addActionListener(e -> registerMember());
+
+        // Borrow/Return Book Form
+        JPanel borrowReturnPanel = new JPanel(new FlowLayout());
+        borrowBookButton = new JButton("Borrow Book");
+        returnBookButton = new JButton("Return Book");
+
+        // ComboBox for selecting a member
+        memberComboBox = new JComboBox<>(Member.getAllMembersNames().toArray(new String[0]));
+        borrowReturnPanel.add(new JLabel("Select Member:"));
+        borrowReturnPanel.add(memberComboBox);
+        borrowReturnPanel.add(borrowBookButton);
+        borrowReturnPanel.add(returnBookButton);
+
+        add(borrowReturnPanel, BorderLayout.NORTH);
+
+        // Borrow Book Button Action Listener
+        borrowBookButton.addActionListener(e -> borrowBook());
+        returnBookButton.addActionListener(e -> returnBook());
+    }
+
+    // Method to load all books from the database into the table
+    private void loadBooksData() {
+        tableModel.setRowCount(0);
+        Vector<Vector<Object>> data = Book.getAllBooksData();
+        for (Vector<Object> row : data) {
+            tableModel.addRow(row);
+        }
+    }
+
+    private void addBook() {
+        String title = titleField.getText();
+        String author = authorField.getText();
+        String yearText = yearField.getText();
+        String quantityText = quantityField.getText();
+
+        // Check if any field is empty
+        if (title.isEmpty() || author.isEmpty() || yearText.isEmpty() || quantityText.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "All fields must be filled out!", "Input Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        try {
+            int yearPublished = Integer.parseInt(yearText);
+
+            if (yearPublished < 1000 || yearPublished > 2100) {
+                JOptionPane.showMessageDialog(this, "Year must be between 1000 and 2100!", "Input Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            int quantity = Integer.parseInt(quantityText);
+
+            Book book = new Book(title, author, yearPublished, quantity);
+            book.save();
+            loadBooksData();
+            clearBookInputFields();
+
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Year and Quantity must be valid numbers!", "Input Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void deleteSelectedBook() {
+        int selectedRow = booksTable.getSelectedRow();
+        if (selectedRow >= 0) {
+            int bookId = (int) tableModel.getValueAt(selectedRow, 0);
+            Book.deleteBookById(bookId);
+            loadBooksData();
+        } else {
+            JOptionPane.showMessageDialog(this, "Please select a book to delete!", "Selection Error", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
+    private void searchBooks() {
+        String searchText = searchField.getText();
+        if (searchText.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please enter text to search!", "Search Error", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Vector<Vector<Object>> data = Book.searchBooksByTitleOrAuthor(searchText);
+        if (data.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No results found!", "Search Error", JOptionPane.INFORMATION_MESSAGE);
+        }
+        tableModel.setRowCount(0);
+        for (Vector<Object> row : data) {
+            tableModel.addRow(row);
+        }
+    }
+
+    private void clearSearch() {
+        searchField.setText("");
+        loadBooksData();
+    }
+
+    private void generatePopularBooksReport() {
+        Vector<Vector<Object>> popularBooks = Book.getPopularBooks();
+        // Display popular books in a dialog or new window
+        JOptionPane.showMessageDialog(this, "Popular Books Report generated!");
+    }
+
+    private void generateOverdueBooksReport() {
+        Vector<Vector<Object>> overdueBooks = Book.getOverdueBooks();
+        // Display overdue books in a dialog or new window
+        JOptionPane.showMessageDialog(this, "Overdue Books Report generated!");
+    }
+
+    private void registerMember() {
+        String firstName = firstNameField.getText();
+        String lastName = lastNameField.getText();
+        String email = emailField.getText();
+        String phone = phoneField.getText();
+        String address = addressField.getText();
+
+        // Check if any field is empty
+        if (firstName.isEmpty() || lastName.isEmpty() || email.isEmpty() || phone.isEmpty() || address.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "All fields must be filled out!", "Input Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        Member member = new Member(firstName, lastName, email, phone, address);
+        member.save();
+        JOptionPane.showMessageDialog(this, "Member registered successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void borrowBook() {
+        // Borrow book logic goes here
+        JOptionPane.showMessageDialog(this, "Book Borrowed!");
+    }
+
+    private void returnBook() {
+        // Return book logic goes here
+        JOptionPane.showMessageDialog(this, "Book Returned!");
+    }
+
+    private void clearBookInputFields() {
+        titleField.setText("");
+        authorField.setText("");
+        yearField.setText("");
+        quantityField.setText("");
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            new LibrarySystemGUI().setVisible(true);
+        });
+    }
+}
+	//DatabaseConnector.java class
+	package lms;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
+public class DatabaseConnector {
+    private static final String URL = "jdbc:mysql://localhost:3306/library_systemdb";
+    private static final String USER = "root"; 
+    private static final String PASSWORD = ""; 
+
+    public static Connection connect() {
+        try {
+            return DriverManager.getConnection(URL, USER, PASSWORD);
+        } catch (SQLException e) {
+            System.out.println("Connection failed: " + e.getMessage());
+            return null;
+        }
+    }
+}
+	
+	
+	//Book.java class
+	package lms;
+import java.sql.*;
+import java.util.Vector;
+
+public class Book {
+    private String title;
+    private String author;
+    private int yearPublished;
+    private int quantity;
+    private int available;
+
+    // Constructor to create a new book
+    public Book(String title, String author, int yearPublished, int quantity) {
+        this.title = title;
+        this.author = author;
+        this.yearPublished = yearPublished;
+        this.quantity = quantity;
+        this.available = quantity;  // Assume all books are initially available
+    }
+
+    // Save book to the database
+    public void save() {
+        String query = "INSERT INTO Books (title, author, year_published, quantity, available) VALUES (?, ?, ?, ?, ?)"; 
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, title);
+            stmt.setString(2, author);
+            stmt.setInt(3, yearPublished);
+            stmt.setInt(4, quantity);
+            stmt.setInt(5, available);  // Save available count too
+            stmt.executeUpdate();
+            System.out.println("Book added successfully!");
+        } catch (SQLException e) {
+            System.out.println("Error saving book: " + e.getMessage());
+        }
+    }
+
+    // Retrieve all books data in a format suitable for GUI table
+    public static Vector<Vector<Object>> getAllBooksData() {
+        Vector<Vector<Object>> data = new Vector<>();
+        String query = "SELECT * FROM Books";
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                Vector<Object> row = new Vector<>();
+                row.add(rs.getInt("book_id"));
+                row.add(rs.getString("title"));
+                row.add(rs.getString("author"));
+                row.add(rs.getInt("year_published"));
+                row.add(rs.getInt("quantity"));
+                data.add(row);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error retrieving books: " + e.getMessage());
+        }
+        return data;
+    }
+
+    // Method to borrow a book
+    public static void borrowBook(int bookId, Member member) {
+        String query = "UPDATE Books SET available = available - 1 WHERE book_id = ? AND available > 0";  // Only borrow if available > 0
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, bookId);
+
+            int rowsUpdated = stmt.executeUpdate();
+            if (rowsUpdated > 0) {
+                // Record the transaction in the Transactions table
+                String transactionQuery = "INSERT INTO Transactions (book_id, member_id, borrow_date) VALUES (?, ?, CURRENT_DATE)";
+                try (PreparedStatement transStmt = conn.prepareStatement(transactionQuery)) {
+                    transStmt.setInt(1, bookId);
+                    transStmt.setInt(2, member.getMemberId()); // Corrected here
+                    transStmt.executeUpdate();
+                    System.out.println("Book borrowed successfully!");
+                }
+            } else {
+                System.out.println("Book not available for borrowing.");
+            }
+        } catch (SQLException e) {
+            System.out.println("Error borrowing book: " + e.getMessage());
+        }
+    }
+
+    // Method to return a book
+    public static void returnBook(int bookId) {
+        String query = "UPDATE Books SET available = available + 1 WHERE book_id = ?";  // Increase availability when returned
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, bookId);
+            int rowsUpdated = stmt.executeUpdate();
+
+            if (rowsUpdated > 0) {
+                // Update the transaction with the return date
+                String returnQuery = "UPDATE Transactions SET return_date = CURRENT_DATE WHERE book_id = ? AND return_date IS NULL";
+                try (PreparedStatement returnStmt = conn.prepareStatement(returnQuery)) {
+                    returnStmt.setInt(1, bookId);
+                    returnStmt.executeUpdate();
+                    System.out.println("Book returned successfully!");
+                }
+            } else {
+                System.out.println("No such book to return.");
+            }
+        } catch (SQLException e) {
+            System.out.println("Error returning book: " + e.getMessage());
+        }
+    }
+
+    // Get popular books sorted by borrow count
+    public static Vector<Vector<Object>> getPopularBooks() {
+        Vector<Vector<Object>> data = new Vector<>();
+        String query = "SELECT * FROM Books ORDER BY borrow_count DESC LIMIT 10";  // Top 10 most borrowed books
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                Vector<Object> row = new Vector<>();
+                row.add(rs.getInt("book_id"));
+                row.add(rs.getString("title"));
+                row.add(rs.getString("author"));
+                row.add(rs.getInt("borrow_count"));
+                data.add(row);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error retrieving popular books: " + e.getMessage());
+        }
+        return data;
+    }
+
+    // Get overdue books by comparing current date with the due date
+    public static Vector<Vector<Object>> getOverdueBooks() {
+        Vector<Vector<Object>> data = new Vector<>();
+        String query = "SELECT b.book_id, b.title, b.author, t.due_date " +
+                       "FROM Books b " +
+                       "JOIN Transactions t ON b.book_id = t.book_id " +
+                       "WHERE t.due_date < CURRENT_DATE AND t.return_date IS NULL";
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                Vector<Object> row = new Vector<>();
+                row.add(rs.getInt("book_id"));
+                row.add(rs.getString("title"));
+                row.add(rs.getString("author"));
+                row.add(rs.getDate("due_date"));
+                data.add(row);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error retrieving overdue books: " + e.getMessage());
+        }
+        return data;
+    }
+
+    // Delete a book by its ID
+    public static void deleteBookById(int bookId) {
+        String query = "DELETE FROM Books WHERE book_id = ?";
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, bookId);
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("Book with ID " + bookId + " was deleted.");
+            } else {
+                System.out.println("No book found with ID " + bookId);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error deleting book: " + e.getMessage());
+        }
+    }
+
+    // Search books by title or author
+    public static Vector<Vector<Object>> searchBooksByTitleOrAuthor(String searchText) {
+        Vector<Vector<Object>> data = new Vector<>();
+        String query = "SELECT * FROM Books WHERE title LIKE ? OR author LIKE ?";
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, "%" + searchText + "%");
+            stmt.setString(2, "%" + searchText + "%");
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Vector<Object> row = new Vector<>();
+                    row.add(rs.getInt("book_id"));
+                    row.add(rs.getString("title"));
+                    row.add(rs.getString("author"));
+                    row.add(rs.getInt("year_published"));
+                    row.add(rs.getInt("quantity"));
+                    data.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("Error searching books: " + e.getMessage());
+        }
+        return data;
+    }
+}
+	
+	
+	//Member.java class
+	package lms;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+
+public class Member {
+    private int memberId;
+    private String firstName;
+    private String lastName;
+    private String email;
+    private String phone;
+    private String address;
+
+    // Constructor to initialize the member
+    public Member(String firstName, String lastName, String email, String phone, String address) {
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.email = email;
+        this.phone = phone;
+        this.address = address;
+    }
+
+    // Getters and setters
+    public int getMemberId() {
+        return memberId;
+    }
+
+    public void setMemberId(int memberId) {
+        this.memberId = memberId;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    // Save member to the database
+    public boolean save() {
+        String query = "INSERT INTO Members (first_name, last_name, email, phone, address) VALUES (?, ?, ?, ?, ?)";
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, firstName);
+            stmt.setString(2, lastName);
+            stmt.setString(3, email);
+            stmt.setString(4, phone);
+            stmt.setString(5, address);
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("Member added successfully!");
+                return true;
+            }
+        } catch (SQLException e) {
+            System.out.println("Error saving member: " + e.getMessage());
+        }
+        return false;
+    }
+
+    // Static method to get all members from the database
+    public static void getAllMembers() {
+        String query = "SELECT * FROM Members";
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                int memberId = rs.getInt("member_id");
+                String firstName = rs.getString("first_name");
+                String lastName = rs.getString("last_name");
+                String email = rs.getString("email");
+                System.out.println("ID: " + memberId + ", Name: " + firstName + " " +
+                                   lastName + ", Email: " + email);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error retrieving members: " + e.getMessage());
+        }
+    }
+
+    // Retrieve member details by ID
+    public static Member getMemberById(int memberId) {
+        String query = "SELECT * FROM Members WHERE member_id = ?";
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, memberId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                String firstName = rs.getString("first_name");
+                String lastName = rs.getString("last_name");
+                String email = rs.getString("email");
+                String phone = rs.getString("phone");
+                String address = rs.getString("address");
+                return new Member(firstName, lastName, email, phone, address);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error retrieving member: " + e.getMessage());
+        }
+        return null;
+    }
+
+    // Update member information
+    public boolean update() {
+        String query = "UPDATE Members SET first_name = ?, last_name = ?, email = ?, phone = ?, address = ? WHERE member_id = ?";
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, firstName);
+            stmt.setString(2, lastName);
+            stmt.setString(3, email);
+            stmt.setString(4, phone);
+            stmt.setString(5, address);
+            stmt.setInt(6, memberId);
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("Member updated successfully!");
+                return true;
+            }
+        } catch (SQLException e) {
+            System.out.println("Error updating member: " + e.getMessage());
+        }
+        return false;
+    }
+
+    // Delete member by ID
+    public static boolean delete(int memberId) {
+        String query = "DELETE FROM Members WHERE member_id = ?";
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, memberId);
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("Member deleted successfully!");
+                return true;
+            }
+        } catch (SQLException e) {
+            System.out.println("Error deleting member: " + e.getMessage());
+        }
+        return false;
+    }
+
+    // Get member by name (search by first or last name)
+    public static Member getMemberByName(String name) {
+        String query = "SELECT * FROM Members WHERE first_name LIKE ? OR last_name LIKE ?";
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, "%" + name + "%");
+            stmt.setString(2, "%" + name + "%");
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                int memberId = rs.getInt("member_id");
+                String firstName = rs.getString("first_name");
+                String lastName = rs.getString("last_name");
+                String email = rs.getString("email");
+                String phone = rs.getString("phone");
+                String address = rs.getString("address");
+                return new Member(firstName, lastName, email, phone, address);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error retrieving member by name: " + e.getMessage());
+        }
+        return null;
+    }
+
+    // Get all member names (first and last names)
+    public static List<String> getAllMembersNames() {
+        List<String> names = new ArrayList<>();
+        String query = "SELECT first_name, last_name FROM Members";
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                String firstName = rs.getString("first_name");
+                String lastName = rs.getString("last_name");
+                names.add(firstName + " " + lastName);  // Add full name to the list
+            }
+        } catch (SQLException e) {
+            System.out.println("Error retrieving member names: " + e.getMessage());
+        }
+        return names;  // Return the list of member names
+    }
+}
+	
+	
+	//Transaction.java class
+	package lms;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Date;
+
+public class Transaction {
+    private int bookId;
+    private int memberId;
+    private Date borrowDate;
+    private Date dueDate;
+    private Date returnDate;
+    private double fine;
+
+    public Transaction(int bookId, int memberId, Date borrowDate, Date dueDate) {
+        this.bookId = bookId;
+        this.memberId = memberId;
+        this.borrowDate = borrowDate;
+        this.dueDate = dueDate;
+        this.returnDate = null;
+        this.fine = 0.0;
+    }
+
+    public void borrowBook() {
+        String query = "INSERT INTO Transactions (book_id, member_id, borrow_date, due_date) VALUES (?, ?, ?, ?)";
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, bookId);
+            stmt.setInt(2, memberId);
+            stmt.setDate(3, borrowDate);
+            stmt.setDate(4, dueDate);
+            stmt.executeUpdate();
+            System.out.println("Book borrowed successfully!");
+        } catch (SQLException e) {
+            System.out.println("Error recording transaction: " + e.getMessage());
+        }
+    }
+
+    public void returnBook(Date returnDate, double fine) {
+        this.returnDate = returnDate;
+        this.fine = fine;
+        String query = "UPDATE Transactions SET return_date = ?, fine = ? WHERE book_id = ? AND member_id = ? AND return_date IS NULL";
+        try (Connection conn = DatabaseConnector.connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setDate(1, returnDate);
+            stmt.setDouble(2, fine);
+            stmt.setInt(3, bookId);
+            stmt.setInt(4, memberId);
+            stmt.executeUpdate();
+            System.out.println("Book returned successfully!");
+        } catch (SQLException e) {
+            System.out.println("Error updating transaction: " + e.getMessage());
+        }
+    }
+}
+	
